@@ -32,6 +32,10 @@ cd voiz
 pip install -r requirements.txt
 ```
 
+### Uninstall
+
+Double-click **`uninstall.bat`**. It removes the autostart entry, deletes the stored API key from the Credential Manager, and optionally uninstalls the Python dependencies.
+
 ## Getting Started
 
 ### Double-click (recommended)
