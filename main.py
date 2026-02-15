@@ -30,6 +30,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pynput import keyboard
 import pystray
 
+from autostart import is_enabled as autostart_is_enabled, toggle as autostart_toggle
 from config import ensure_api_key, prompt_api_key_gui
 from recorder import Recorder
 from transcriber import transcribe
@@ -259,6 +260,14 @@ def on_set_api_key(state: AppState) -> None:
         state.api_key = new_key
 
 
+def on_toggle_autostart(state: AppState) -> None:
+    """Context menu action: toggle autostart with Windows."""
+    now_enabled = autostart_toggle()
+    if state.tray:
+        status = "enabled" if now_enabled else "disabled"
+        notify(state.tray, "Voiz", f"Autostart {status}.")
+
+
 def on_quit(state: AppState, icon: pystray.Icon) -> None:
     """Context menu action: quit the app."""
     icon.stop()
@@ -270,6 +279,11 @@ def create_tray(state: AppState) -> pystray.Icon:
         pystray.MenuItem(
             "Set API Key",
             lambda icon, item: on_set_api_key(state),
+        ),
+        pystray.MenuItem(
+            "Start with Windows",
+            lambda icon, item: on_toggle_autostart(state),
+            checked=lambda item: autostart_is_enabled(),
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(

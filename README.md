@@ -9,6 +9,7 @@ Minimal Windows app that records your voice with **Ctrl+Space**, transcribes it 
 - **Code-switching**: Correctly transcribes mixed languages (e.g. German with English terms)
 - **System tray**: Minimal tray icon with status indicator (green/red/blue)
 - **Secure API key**: Stored in the Windows Credential Manager
+- **Autostart**: Optionally start Voiz with Windows (toggle via tray menu)
 
 ## Prerequisites
 
@@ -17,6 +18,14 @@ Minimal Windows app that records your voice with **Ctrl+Space**, transcribes it 
 - OpenAI API key ([create one here](https://platform.openai.com/api-keys))
 
 ## Installation
+
+Double-click **`install.bat`**. It will:
+
+1. Check that Python is installed
+2. Install all dependencies
+3. Optionally enable autostart with Windows
+
+Alternatively, install manually:
 
 ```bash
 cd voiz
@@ -44,6 +53,7 @@ On first launch, a dialog will ask for your OpenAI API key. It is securely store
 | Start recording | Ctrl+Space |
 | Stop recording | Ctrl+Space (again) |
 | Change API key | Right-click tray icon → "Set API Key" |
+| Toggle autostart | Right-click tray icon → "Start with Windows" |
 | Quit the app | Right-click tray icon → "Quit" |
 
 ## Status Indicator (Tray Icon)
