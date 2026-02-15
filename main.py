@@ -1,10 +1,12 @@
-"""Voiz - Speech-to-Clipboard.
+"""Voiz - Speech-to-Clipboard & Text Tools.
 
-Minimal app: press Ctrl+Space, speak, press again,
-transcription lands in your clipboard.
+Ctrl+Space:     Record voice, transcribe with Whisper, copy to clipboard.
+Ctrl+Alt+Space: Open tool palette to optimize or translate clipboard text.
 """
 
 import ctypes
+import os
+import subprocess
 import sys
 import threading
 
@@ -33,6 +35,7 @@ import pystray
 from autostart import is_enabled as autostart_is_enabled, toggle as autostart_toggle
 from config import ensure_api_key, prompt_api_key_gui
 from recorder import Recorder
+from texttools import optimize_text
 from transcriber import transcribe
 
 
@@ -235,14 +238,101 @@ def _toggle_recording_inner(state: AppState) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Text Tools (Ctrl+Alt+Space)
+# ---------------------------------------------------------------------------
+
+TOOL_PICKER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolpicker.py")
+
+MODE_LABELS = {
+    "email": "Email",
+    "slack": "Slack",
+    "translate": "English",
+}
+
+
+def _show_tool_picker() -> str:
+    """Opens the tool picker popup in a subprocess.
+
+    Returns:
+        The selected mode ("email", "slack", "translate") or "" if cancelled.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, TOOL_PICKER_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return ""
+
+
+def open_text_tools(state: AppState) -> None:
+    """Opens the tool picker and processes the clipboard text."""
+
+    if state.status == AppState.PROCESSING:
+        return
+
+    # Show the tool picker (blocks until user selects or cancels)
+    mode = _show_tool_picker()
+    if not mode:
+        return
+
+    # Read current clipboard content
+    try:
+        text = pyperclip.paste()
+    except Exception:
+        text = ""
+
+    if not text or not text.strip():
+        if state.tray:
+            notify(state.tray, "Voiz Tools", "Clipboard is empty.")
+        return
+
+    state.set_status(AppState.PROCESSING)
+    label = MODE_LABELS.get(mode, mode)
+    if state.tray:
+        notify(state.tray, "Voiz Tools", f"Optimizing for {label}...")
+
+    def _process() -> None:
+        try:
+            result = optimize_text(text, mode, state.api_key)
+            if result:
+                pyperclip.copy(result)
+                if state.tray:
+                    preview = result[:80] + ("..." if len(result) > 80 else "")
+                    notify(state.tray, f"Voiz Tools - {label}", preview)
+            else:
+                if state.tray:
+                    notify(state.tray, "Voiz Tools", "No result returned.")
+        except Exception as e:
+            err_msg = str(e)
+            if "auth" in err_msg.lower() or "api key" in err_msg.lower():
+                err_msg = "Invalid API key. Please update it via the tray menu."
+            if state.tray:
+                notify(state.tray, "Voiz Tools - Error", err_msg)
+        finally:
+            state.set_status(AppState.IDLE)
+
+    threading.Thread(target=_process, daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
 # Hotkey Listener
 # ---------------------------------------------------------------------------
 
 def setup_hotkey_listener(state: AppState) -> keyboard.GlobalHotKeys:
-    """Sets up the global Ctrl+Space hotkey."""
+    """Sets up global hotkeys:
+    - Ctrl+Space:     Toggle voice recording
+    - Ctrl+Alt+Space: Open text tools palette
+    """
 
     hotkey = keyboard.GlobalHotKeys({
         "<ctrl>+<space>": lambda: toggle_recording(state),
+        "<ctrl>+<alt>+<space>": lambda: open_text_tools(state),
     })
     hotkey.daemon = True
     hotkey.start()
@@ -295,7 +385,7 @@ def create_tray(state: AppState) -> pystray.Icon:
     icon = pystray.Icon(
         name="voiz",
         icon=create_icon(AppState.IDLE),
-        title="Voiz - Speech-to-Clipboard (Ctrl+Space)",
+        title="Voiz (Ctrl+Space: Record | Ctrl+Alt+Space: Tools)",
         menu=menu,
     )
 

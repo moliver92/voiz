@@ -1,12 +1,23 @@
-# Voiz - Speech-to-Clipboard
+# Voiz - Speech-to-Clipboard & Text Tools
 
-Minimal Windows app that records your voice with **Ctrl+Space**, transcribes it using OpenAI Whisper, and copies the result to your clipboard.
+Minimal Windows app with two superpowers:
+
+1. **Ctrl+Space** -- Record your voice, transcribe with OpenAI Whisper, copy to clipboard.
+2. **Ctrl+Alt+Space** -- Open a tool palette to optimize or translate your clipboard text with GPT.
 
 ## Features
 
+### Voice Recording
 - **Toggle recording**: Ctrl+Space to start, press again to stop
 - **Automatic language detection**: Whisper detects the language automatically
 - **Code-switching**: Correctly transcribes mixed languages (e.g. German with English terms)
+
+### Text Tools (Ctrl+Alt+Space)
+- **Optimize for Email**: Formats clipboard text as a professional email with greeting, proper paragraphs, and closing
+- **Optimize for Slack**: Rewrites clipboard text in a direct, casual chat-friendly style
+- **Translate to English**: Translates clipboard text into English
+
+### General
 - **System tray**: Minimal tray icon with status indicator (green/red/blue)
 - **Secure API key**: Stored in the Windows Credential Manager
 - **Autostart**: Optionally start Voiz with Windows (toggle via tray menu)
@@ -56,17 +67,18 @@ On first launch, a dialog will ask for your OpenAI API key. It is securely store
 |---|---|
 | Start recording | Ctrl+Space |
 | Stop recording | Ctrl+Space (again) |
+| Open text tools | Ctrl+Alt+Space |
 | Change API key | Right-click tray icon → "Set API Key" |
 | Toggle autostart | Right-click tray icon → "Start with Windows" |
 | Quit the app | Right-click tray icon → "Quit" |
 
 ## Status Indicator (Tray Icon)
 
-- **Green**: Ready to record
+- **Green**: Ready
 - **Red**: Recording in progress
-- **Blue**: Transcription in progress
+- **Blue**: Processing (transcription or text optimization)
 
 ## Notes
 
-- Ctrl+Space may conflict with some IDEs (e.g. VS Code autocomplete). The shortcut can be changed in `main.py`.
+- Ctrl+Space may conflict with some IDEs (e.g. VS Code autocomplete). Shortcuts can be changed in `main.py`.
 - The app also runs on macOS (API key is stored in the macOS Keychain instead).
