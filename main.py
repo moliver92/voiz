@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +163,31 @@ def notify(tray: pystray.Icon, title: str, message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Auto-Paste: Copy to clipboard and simulate Ctrl+V
+# ---------------------------------------------------------------------------
+
+def copy_and_paste(text: str) -> None:
+    """Copies text to the clipboard and simulates Ctrl+V to paste it
+    at the current cursor position.
+
+    The clipboard is always updated (so Ctrl+V works later too).
+    The simulated paste is best-effort -- it works in most apps but
+    some may ignore synthetic keystrokes.
+    """
+    pyperclip.copy(text)
+    time.sleep(0.05)  # Small delay to ensure clipboard is updated
+    try:
+        kb = keyboard.Controller()
+        kb.press(keyboard.Key.ctrl)
+        kb.press("v")
+        kb.release("v")
+        kb.release(keyboard.Key.ctrl)
+    except Exception:
+        # Paste simulation failed -- text is still in clipboard
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Recording Toggle (Core Logic)
 # ---------------------------------------------------------------------------
 
@@ -217,7 +243,7 @@ def _toggle_recording_inner(state: AppState) -> None:
             try:
                 text = transcribe(audio_bytes, state.api_key)
                 if text:
-                    pyperclip.copy(text)
+                    copy_and_paste(text)
                     if state.tray:
                         # Preview: first 80 characters
                         preview = text[:80] + ("..." if len(text) > 80 else "")
@@ -246,7 +272,8 @@ TOOL_PICKER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "t
 MODE_LABELS = {
     "email": "Email",
     "slack": "Slack",
-    "translate": "English",
+    "translate_en": "English",
+    "translate_de": "German",
 }
 
 
@@ -301,7 +328,7 @@ def open_text_tools(state: AppState) -> None:
         try:
             result = optimize_text(text, mode, state.api_key)
             if result:
-                pyperclip.copy(result)
+                copy_and_paste(result)
                 if state.tray:
                     preview = result[:80] + ("..." if len(result) > 80 else "")
                     notify(state.tray, f"Voiz Tools - {label}", preview)

@@ -26,11 +26,18 @@ SYSTEM_PROMPTS = {
         "Keep the original language of the text -- do NOT translate. "
         "Return ONLY the optimized message text, nothing else."
     ),
-    "translate": (
+    "translate_en": (
         "You are a professional translator. "
         "Translate the user's text into English. "
         "Maintain the original tone, style, and formatting. "
         "If the text is already in English, improve grammar and clarity. "
+        "Return ONLY the translated text, nothing else."
+    ),
+    "translate_de": (
+        "You are a professional translator. "
+        "Translate the user's text into German. "
+        "Maintain the original tone, style, and formatting. "
+        "If the text is already in German, improve grammar and clarity. "
         "Return ONLY the translated text, nothing else."
     ),
 }
@@ -41,7 +48,7 @@ def optimize_text(text: str, mode: str, api_key: str) -> str:
 
     Args:
         text: The input text to process.
-        mode: One of "email", "slack", "translate".
+        mode: One of "email", "slack", "translate_en", "translate_de".
         api_key: OpenAI API key.
 
     Returns:

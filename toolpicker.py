@@ -75,13 +75,17 @@ def main() -> None:
     btn_frame = tk.Frame(root, bg=bg, padx=12, pady=8)
     btn_frame.pack(fill="x")
 
+    accent_translate_de = "#cba6f7"
+
     buttons = [
         ("email", "\u2709  Optimize for Email", accent_email,
          "Formal, polite, proper paragraphs"),
         ("slack", "\u26a1  Optimize for Slack", accent_slack,
          "Direct, casual, chat-friendly"),
-        ("translate", "\U0001f310  Translate to English", accent_translate,
+        ("translate_en", "\U0001f310  Translate to English", accent_translate,
          "Translate clipboard text to English"),
+        ("translate_de", "\U0001f1e9\U0001f1ea  Translate to German", accent_translate_de,
+         "Translate clipboard text to German"),
     ]
 
     for mode, label, accent, description in buttons:
