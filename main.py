@@ -324,19 +324,54 @@ def open_text_tools(state: AppState) -> None:
 # Hotkey Listener
 # ---------------------------------------------------------------------------
 
-def setup_hotkey_listener(state: AppState) -> keyboard.GlobalHotKeys:
-    """Sets up global hotkeys:
-    - Ctrl+Space:     Toggle voice recording
-    - Ctrl+Alt+Space: Open text tools palette
-    """
+def setup_hotkey_listener(state: AppState) -> keyboard.Listener:
+    """Sets up global hotkeys using a raw Listener for exact modifier matching.
 
-    hotkey = keyboard.GlobalHotKeys({
-        "<ctrl>+<space>": lambda: toggle_recording(state),
-        "<ctrl>+<alt>+<space>": lambda: open_text_tools(state),
-    })
-    hotkey.daemon = True
-    hotkey.start()
-    return hotkey
+    - Ctrl+Space (without Alt):  Toggle voice recording
+    - Ctrl+Alt+Space:            Open text tools palette
+
+    GlobalHotKeys can't distinguish these because Ctrl+Alt+Space also
+    satisfies Ctrl+Space. A raw Listener with explicit modifier tracking
+    solves this.
+    """
+    pressed_keys: set = set()
+
+    def _normalize(key: keyboard.Key | keyboard.KeyCode) -> str:
+        """Returns a stable string identifier for a key."""
+        if isinstance(key, keyboard.Key):
+            # Map left/right variants to a single name
+            name = key.name
+            if name.startswith("ctrl"):
+                return "ctrl"
+            if name.startswith("alt"):
+                return "alt"
+            return name
+        return str(key)
+
+    def on_press(key: keyboard.Key | keyboard.KeyCode) -> None:
+        name = _normalize(key)
+        pressed_keys.add(name)
+
+        if name == "space":
+            ctrl = "ctrl" in pressed_keys
+            alt = "alt" in pressed_keys
+
+            if ctrl and alt:
+                threading.Thread(
+                    target=open_text_tools, args=(state,), daemon=True
+                ).start()
+            elif ctrl and not alt:
+                threading.Thread(
+                    target=toggle_recording, args=(state,), daemon=True
+                ).start()
+
+    def on_release(key: keyboard.Key | keyboard.KeyCode) -> None:
+        pressed_keys.discard(_normalize(key))
+
+    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+    listener.daemon = True
+    listener.start()
+    return listener
 
 
 # ---------------------------------------------------------------------------
