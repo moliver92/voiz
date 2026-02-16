@@ -16,19 +16,37 @@ Minimal Windows app with two superpowers:
 - **Optimize for Email**: Formats clipboard text as a professional email with greeting, proper paragraphs, and closing
 - **Optimize for Slack**: Rewrites clipboard text in a direct, casual chat-friendly style
 - **Translate to English**: Translates clipboard text into English
+- **Translate to German**: Translates clipboard text into German
 
 ### General
 - **System tray**: Minimal tray icon with status indicator (green/red/blue)
 - **Secure API key**: Stored in the Windows Credential Manager
 - **Autostart**: Optionally start Voiz with Windows (toggle via tray menu)
 
-## Prerequisites
+## Quick Start (Standalone .exe)
 
-- Python 3.10+
+1. Go to [**Releases**](https://github.com/moliver92/voiz/releases)
+2. Download **voiz.exe**
+3. Double-click to run -- no Python installation needed
+4. Enter your OpenAI API key when prompted
+5. Voiz appears in the system tray, ready to go
+
+### Requirements
+
+- Windows 10/11
 - A working microphone
 - OpenAI API key ([create one here](https://platform.openai.com/api-keys))
 
-## Installation
+## Installation (from source)
+
+<details>
+<summary>Only needed if you want to run from source instead of the .exe</summary>
+
+### Prerequisites
+
+- Python 3.10+
+
+### Install
 
 Double-click **`install.bat`**. It will:
 
@@ -43,21 +61,19 @@ cd voiz
 pip install -r requirements.txt
 ```
 
-### Uninstall
+### Run
 
-Double-click **`uninstall.bat`**. It removes the autostart entry, deletes the stored API key from the Credential Manager, and optionally uninstalls the Python dependencies.
-
-## Getting Started
-
-### Double-click (recommended)
-
-Simply double-click **`voiz.pyw`**. The app starts in the background without a console window and appears only as a tray icon next to the clock.
-
-### Via terminal
+Double-click **`voiz.pyw`** or run via terminal:
 
 ```bash
 python main.py
 ```
+
+### Uninstall
+
+Double-click **`uninstall.bat`**. It removes the autostart entry, deletes the stored API key from the Credential Manager, and optionally uninstalls the Python dependencies.
+
+</details>
 
 On first launch, a dialog will ask for your OpenAI API key. It is securely stored in the Windows Credential Manager.
 

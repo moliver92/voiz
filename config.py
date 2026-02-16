@@ -2,6 +2,9 @@
 
 All GUI dialogs run in separate subprocesses to avoid threading conflicts
 with pystray (Tcl_AsyncDelete crash).
+
+In PyInstaller mode, dialogs are invoked via the .exe's sub-commands
+(--api-key-dialog, --error-dialog) instead of python -c scripts.
 """
 
 import subprocess
@@ -13,13 +16,7 @@ import keyring
 SERVICE_NAME = "voiz-speech-to-clipboard"
 KEY_NAME = "openai_api_key"
 
-
-def _python_exe() -> str:
-    """Returns the path to the current python(w) executable.
-
-    Ensures the subprocess works correctly with both python.exe and pythonw.exe.
-    """
-    return sys.executable
+_FROZEN = getattr(sys, 'frozen', False)
 
 
 def get_api_key() -> str | None:
@@ -40,24 +37,31 @@ def delete_api_key() -> None:
         pass
 
 
+def _subprocess_flags() -> int:
+    """Returns creationflags to hide the console window on Windows."""
+    if sys.platform == "win32":
+        return subprocess.CREATE_NO_WINDOW
+    return 0
+
+
 def _show_error_gui(title: str, message: str) -> None:
     """Shows an error message as a GUI dialog in a subprocess."""
-    script = textwrap.dedent(f"""\
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        messagebox.showerror({title!r}, {message!r})
-        root.destroy()
-    """)
+    if _FROZEN:
+        cmd = [sys.executable, "--error-dialog", title, message]
+    else:
+        script = textwrap.dedent(f"""\
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            messagebox.showerror({title!r}, {message!r})
+            root.destroy()
+        """)
+        cmd = [sys.executable, "-c", script]
+
     try:
-        subprocess.run(
-            [_python_exe(), "-c", script],
-            timeout=30,
-            creationflags=subprocess.CREATE_NO_WINDOW
-            if sys.platform == "win32" else 0,
-        )
+        subprocess.run(cmd, timeout=30, creationflags=_subprocess_flags())
     except (subprocess.TimeoutExpired, OSError):
         pass
 
@@ -68,33 +72,36 @@ def prompt_api_key_gui() -> str | None:
     Returns:
         The entered API key, or None if cancelled.
     """
-    script = textwrap.dedent("""\
-        import tkinter as tk
-        from tkinter import simpledialog
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        key = simpledialog.askstring(
-            "Voiz - API Key",
-            "Please enter your OpenAI API key:\\n\\n"
-            "Create a key at:\\n"
-            "https://platform.openai.com/api-keys",
-            show="*",
-            parent=root,
-        )
-        root.destroy()
-        if key and key.strip():
-            print(key.strip(), end="")
-    """)
+    if _FROZEN:
+        cmd = [sys.executable, "--api-key-dialog"]
+    else:
+        script = textwrap.dedent("""\
+            import tkinter as tk
+            from tkinter import simpledialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            key = simpledialog.askstring(
+                "Voiz - API Key",
+                "Please enter your OpenAI API key:\\n\\n"
+                "Create a key at:\\n"
+                "https://platform.openai.com/api-keys",
+                show="*",
+                parent=root,
+            )
+            root.destroy()
+            if key and key.strip():
+                print(key.strip(), end="")
+        """)
+        cmd = [sys.executable, "-c", script]
 
     try:
         result = subprocess.run(
-            [_python_exe(), "-c", script],
+            cmd,
             capture_output=True,
             text=True,
             timeout=120,
-            creationflags=subprocess.CREATE_NO_WINDOW
-            if sys.platform == "win32" else 0,
+            creationflags=_subprocess_flags(),
         )
         if result.returncode == 0 and result.stdout.strip():
             api_key = result.stdout.strip()

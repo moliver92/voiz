@@ -1,0 +1,66 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"    # Triggered by tags like v1.0.0, v0.2.1, etc.
+
+permissions:
+  contents: write  # Required to create releases
+
+jobs:
+  build:
+    name: Build voiz.exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller voiz.spec
+
+      - name: Verify build output
+        run: |
+          if (!(Test-Path "dist/voiz.exe")) {
+            Write-Error "voiz.exe not found in dist/"
+            exit 1
+          }
+          $size = (Get-Item "dist/voiz.exe").Length / 1MB
+          Write-Host "voiz.exe size: $([math]::Round($size, 2)) MB"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "dist/voiz.exe" `
+            --title "Voiz ${{ github.ref_name }}" `
+            --notes "## Download
+
+          Download **voiz.exe** below, double-click to start. No Python installation needed.
+
+          ### First Start
+          1. Download and run ``voiz.exe``
+          2. Enter your OpenAI API key when prompted
+          3. Voiz appears in the system tray
+
+          ### Hotkeys
+          - **Ctrl+Space** -- Record voice, transcribe, paste
+          - **Ctrl+Alt+Space** -- Open text tools (Email, Slack, Translate)
+
+          ### Requirements
+          - Windows 10/11
+          - OpenAI API key ([get one here](https://platform.openai.com/api-keys))
+          - Microphone"

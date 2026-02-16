@@ -267,8 +267,6 @@ def _toggle_recording_inner(state: AppState) -> None:
 # Text Tools (Ctrl+Alt+Space)
 # ---------------------------------------------------------------------------
 
-TOOL_PICKER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolpicker.py")
-
 MODE_LABELS = {
     "email": "Email",
     "slack": "Slack",
@@ -276,20 +274,26 @@ MODE_LABELS = {
     "translate_de": "German",
 }
 
+_FROZEN = getattr(sys, 'frozen', False)
+
 
 def _show_tool_picker() -> str:
     """Opens the tool picker popup in a subprocess.
 
+    In PyInstaller mode, calls the .exe with --toolpicker flag.
+    In development mode, runs toolpicker.py directly.
+
     Returns:
-        The selected mode ("email", "slack", "translate") or "" if cancelled.
+        The selected mode ("email", "slack", "translate_en", ...) or "" if cancelled.
     """
+    if _FROZEN:
+        cmd = [sys.executable, "--toolpicker"]
+    else:
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolpicker.py")
+        cmd = [sys.executable, script]
+
     try:
-        result = subprocess.run(
-            [sys.executable, TOOL_PICKER_SCRIPT],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             return result.stdout.strip()
     except (subprocess.TimeoutExpired, OSError):

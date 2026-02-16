@@ -15,6 +15,7 @@ import sys
 import textwrap
 
 APP_NAME = "Voiz"
+_FROZEN = getattr(sys, 'frozen', False)
 
 
 def _startup_folder() -> str:
@@ -31,15 +32,24 @@ def _startup_file() -> str:
 
 
 def _voiz_pyw_path() -> str:
-    """Returns the absolute path to voiz.pyw."""
+    """Returns the absolute path to the Voiz entry point.
+
+    In PyInstaller mode, this is the .exe itself.
+    In development mode, this is voiz.pyw.
+    """
+    if _FROZEN:
+        return sys.executable
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "voiz.pyw")
 
 
 def _pythonw_path() -> str:
     """Returns the path to pythonw.exe (no-console Python).
 
+    In PyInstaller mode, returns None (the .exe IS the launcher).
     Falls back to the current executable if pythonw is not found.
     """
+    if _FROZEN:
+        return ""
     exe = sys.executable
     directory = os.path.dirname(exe)
     pythonw = os.path.join(directory, "pythonw.exe")
@@ -63,16 +73,22 @@ def enable() -> bool:
         True if successful, False otherwise.
     """
     try:
-        pythonw = _pythonw_path()
-        voiz_pyw = _voiz_pyw_path()
+        voiz_path = _voiz_pyw_path()
 
-        # VBScript that launches pythonw.exe with voiz.pyw silently
-        # In VBScript, doubled quotes ("") represent a literal quote inside a string
         q = '"'
-        vbs_content = (
-            f'Set WshShell = CreateObject("WScript.Shell")\n'
-            f'WshShell.Run {q}{q}{q}{pythonw}{q}{q} {q}{q}{voiz_pyw}{q}{q}{q}, 0, False\n'
-        )
+        if _FROZEN:
+            # PyInstaller .exe: just run the exe directly
+            vbs_content = (
+                f'Set WshShell = CreateObject("WScript.Shell")\n'
+                f'WshShell.Run {q}{q}{q}{voiz_path}{q}{q}{q}, 0, False\n'
+            )
+        else:
+            # Development mode: run pythonw.exe with voiz.pyw
+            pythonw = _pythonw_path()
+            vbs_content = (
+                f'Set WshShell = CreateObject("WScript.Shell")\n'
+                f'WshShell.Run {q}{q}{q}{pythonw}{q}{q} {q}{q}{voiz_path}{q}{q}{q}, 0, False\n'
+            )
 
         startup_file = _startup_file()
         os.makedirs(os.path.dirname(startup_file), exist_ok=True)
