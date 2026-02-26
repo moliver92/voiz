@@ -167,10 +167,10 @@ def notify(tray: pystray.Icon, title: str, message: str) -> None:
 # ---------------------------------------------------------------------------
 
 def copy_and_paste(text: str) -> None:
-    """Copies text to the clipboard and simulates Ctrl+V to paste it
-    at the current cursor position.
+    """Copies text to the clipboard and simulates the paste shortcut.
 
-    The clipboard is always updated (so Ctrl+V works later too).
+    Uses Cmd+V on macOS, Ctrl+V on Windows/Linux.
+    The clipboard is always updated (so the shortcut works later too).
     The simulated paste is best-effort -- it works in most apps but
     some may ignore synthetic keystrokes.
     """
@@ -178,10 +178,11 @@ def copy_and_paste(text: str) -> None:
     time.sleep(0.05)  # Small delay to ensure clipboard is updated
     try:
         kb = keyboard.Controller()
-        kb.press(keyboard.Key.ctrl)
+        modifier = keyboard.Key.cmd if sys.platform == "darwin" else keyboard.Key.ctrl
+        kb.press(modifier)
         kb.press("v")
         kb.release("v")
-        kb.release(keyboard.Key.ctrl)
+        kb.release(modifier)
     except Exception:
         # Paste simulation failed -- text is still in clipboard
         pass
