@@ -166,23 +166,40 @@ def notify(tray: pystray.Icon, title: str, message: str) -> None:
 # Auto-Paste: Copy to clipboard and simulate Ctrl+V
 # ---------------------------------------------------------------------------
 
+def _mac_cmd_v() -> None:
+    """Simulates Cmd+V on macOS via Quartz CGEvent (most reliable method)."""
+    from Quartz import (
+        CGEventCreateKeyboardEvent,
+        CGEventPost,
+        CGEventSetFlags,
+        kCGHIDEventTap,
+        kCGEventFlagMaskCommand,
+    )
+    V_KEYCODE = 0x09
+    for is_down in (True, False):
+        event = CGEventCreateKeyboardEvent(None, V_KEYCODE, is_down)
+        CGEventSetFlags(event, kCGEventFlagMaskCommand)
+        CGEventPost(kCGHIDEventTap, event)
+
+
 def copy_and_paste(text: str) -> None:
     """Copies text to the clipboard and simulates the paste shortcut.
 
-    Uses Cmd+V on macOS, Ctrl+V on Windows/Linux.
+    On macOS, uses Quartz CGEvent to trigger Cmd+V.
+    On Windows/Linux, uses pynput to simulate Ctrl+V.
     The clipboard is always updated (so the shortcut works later too).
-    The simulated paste is best-effort -- it works in most apps but
-    some may ignore synthetic keystrokes.
     """
     pyperclip.copy(text)
-    time.sleep(0.05)  # Small delay to ensure clipboard is updated
+    time.sleep(0.1)  # Let clipboard settle and ensure target app has focus
     try:
-        kb = keyboard.Controller()
-        modifier = keyboard.Key.cmd if sys.platform == "darwin" else keyboard.Key.ctrl
-        kb.press(modifier)
-        kb.press("v")
-        kb.release("v")
-        kb.release(modifier)
+        if sys.platform == "darwin":
+            _mac_cmd_v()
+        else:
+            kb = keyboard.Controller()
+            kb.press(keyboard.Key.ctrl)
+            kb.press("v")
+            kb.release("v")
+            kb.release(keyboard.Key.ctrl)
     except Exception:
         # Paste simulation failed -- text is still in clipboard
         pass
@@ -359,24 +376,31 @@ def open_text_tools(state: AppState) -> None:
 def setup_hotkey_listener(state: AppState) -> keyboard.Listener:
     """Sets up global hotkeys using a raw Listener for exact modifier matching.
 
-    - Ctrl+Space (without Alt):  Toggle voice recording
-    - Ctrl+Alt+Space:            Open text tools palette
+    Windows/Linux:
+        - Ctrl+Space            Toggle voice recording
+        - Ctrl+Alt+Space        Open text tools palette
+
+    macOS (Cmd is more native than Ctrl):
+        - Cmd+Space             Toggle voice recording
+        - Cmd+Option+Space      Open text tools palette
 
     GlobalHotKeys can't distinguish these because Ctrl+Alt+Space also
     satisfies Ctrl+Space. A raw Listener with explicit modifier tracking
     solves this.
     """
     pressed_keys: set = set()
+    _IS_MAC = sys.platform == "darwin"
 
     def _normalize(key: keyboard.Key | keyboard.KeyCode) -> str:
         """Returns a stable string identifier for a key."""
         if isinstance(key, keyboard.Key):
-            # Map left/right variants to a single name
             name = key.name
             if name.startswith("ctrl"):
                 return "ctrl"
             if name.startswith("alt"):
                 return "alt"
+            if name.startswith("cmd"):
+                return "cmd"
             return name
         return str(key)
 
@@ -385,14 +409,19 @@ def setup_hotkey_listener(state: AppState) -> keyboard.Listener:
         pressed_keys.add(name)
 
         if name == "space":
-            ctrl = "ctrl" in pressed_keys
-            alt = "alt" in pressed_keys
+            if _IS_MAC:
+                # Ctrl+Space = recording, Ctrl+Cmd+Space = text tools
+                primary = "ctrl" in pressed_keys
+                secondary = "cmd" in pressed_keys
+            else:
+                primary = "ctrl" in pressed_keys
+                secondary = "alt" in pressed_keys
 
-            if ctrl and alt:
+            if primary and secondary:
                 threading.Thread(
                     target=open_text_tools, args=(state,), daemon=True
                 ).start()
-            elif ctrl and not alt:
+            elif primary and not secondary:
                 threading.Thread(
                     target=toggle_recording, args=(state,), daemon=True
                 ).start()
@@ -438,7 +467,7 @@ def create_tray(state: AppState) -> pystray.Icon:
             lambda icon, item: on_set_api_key(state),
         ),
         pystray.MenuItem(
-            "Start with Windows",
+            "Start with macOS" if sys.platform == "darwin" else "Start with Windows",
             lambda icon, item: on_toggle_autostart(state),
             checked=lambda item: autostart_is_enabled(),
         ),
@@ -449,10 +478,15 @@ def create_tray(state: AppState) -> pystray.Icon:
         ),
     )
 
+    if sys.platform == "darwin":
+        tooltip = "Voiz (Ctrl+Space: Record | Ctrl+Cmd+Space: Tools)"
+    else:
+        tooltip = "Voiz (Ctrl+Space: Record | Ctrl+Alt+Space: Tools)"
+
     icon = pystray.Icon(
         name="voiz",
         icon=create_icon(AppState.IDLE),
-        title="Voiz (Ctrl+Space: Record | Ctrl+Alt+Space: Tools)",
+        title=tooltip,
         menu=menu,
     )
 
